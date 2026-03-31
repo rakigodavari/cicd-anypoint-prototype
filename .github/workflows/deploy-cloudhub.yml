@@ -83,12 +83,13 @@ jobs:
           APP_NAME=$(grep APP_NAME $PROP_FILE | cut -d'=' -f2 | tr -d '\r' | xargs)
           RUNTIME=$(grep RUNTIME_VERSION $PROP_FILE | cut -d'=' -f2 | tr -d '\r' | xargs)
           
-          APP_ASSET_ID=$(grep ASSET_ID $PROP_FILE | cut -d'=' -f2 | tr -d '\r' | xargs)
-          APP_VERSION=$(grep ASSET_VERSION $PROP_FILE | cut -d'=' -f2 | tr -d '\r' | xargs)
+          # Distinct Application Asset
+          APP_ASSET_ID=$(grep APP_ASSET_ID $PROP_FILE | cut -d'=' -f2 | tr -d '\r' | xargs)
+          APP_VERSION=$(grep APP_ASSET_VERSION $PROP_FILE | cut -d'=' -f2 | tr -d '\r' | xargs)
           
-          # Assuming you are using the same asset details for both Spec and Implementation in this project
-          SPEC_ASSET_ID=$APP_ASSET_ID
-          SPEC_VERSION=$APP_VERSION
+          # Distinct RAML Specification Asset
+          SPEC_ASSET_ID=$(grep SPEC_ASSET_ID $PROP_FILE | cut -d'=' -f2 | tr -d '\r' | xargs)
+          SPEC_VERSION=$(grep SPEC_VERSION $PROP_FILE | cut -d'=' -f2 | tr -d '\r' | xargs)
 
           JAR_FILE=$(find target -maxdepth 1 -name "*.jar" | head -n 1)
 
