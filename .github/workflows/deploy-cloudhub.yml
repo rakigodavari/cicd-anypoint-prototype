@@ -110,7 +110,7 @@ jobs:
           echo "DEBUG: Searching Exchange for RAML -> ASSET: $SPEC_ASSET_ID | VERSION: $SPEC_VERSION"
           # CRITICAL FIX: Removed ORG_ID from positional arguments and changed type to raml
           API_JSON=$(anypoint-cli-v4 api-mgr:api:manage "$SPEC_ASSET_ID" "$SPEC_VERSION" --type raml --environment "$ENV_NAME" -o json)
-          API_ID=$(echo $API_JSON | jq -r '.[0].id // .id')
+          API_ID=$(echo "$API_JSON" | jq -r 'if type == "array" then .[0].id else .id end')
           echo "Generated API ID: $API_ID"
 
           echo "=== Step 3: Apply Basic Auth Policy ==="
