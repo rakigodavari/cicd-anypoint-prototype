@@ -45,8 +45,8 @@ jobs:
       - name: Setup Maven Authentication
         run: |
           echo "=== Extracting Credentials for Maven ==="
-          export ANYPOINT_CLIENT_ID=$(grep CLIENT_ID $PROP_FILE | cut -d'=' -f2 | tr -d '\r')
-          export ANYPOINT_CLIENT_SECRET=$(grep CLIENT_SECRET $PROP_FILE | cut -d'=' -f2 | tr -d '\r')
+          export ANYPOINT_CLIENT_ID=$(grep CLIENT_ID $PROP_FILE | cut -d'=' -f2 | tr -d '\r' | xargs)
+          export ANYPOINT_CLIENT_SECRET=$(grep CLIENT_SECRET $PROP_FILE | cut -d'=' -f2 | tr -d '\r' | xargs)
           
           echo "=== Creating settings.xml ==="
           cat <<EOF > settings.xml
@@ -74,17 +74,17 @@ jobs:
           set -e
 
           echo "=== Extracting Remaining Properties ==="
-          export ANYPOINT_CLIENT_ID=$(grep CLIENT_ID $PROP_FILE | cut -d'=' -f2 | tr -d '\r')
-          export ANYPOINT_CLIENT_SECRET=$(grep CLIENT_SECRET $PROP_FILE | cut -d'=' -f2 | tr -d '\r')
+          export ANYPOINT_CLIENT_ID=$(grep CLIENT_ID $PROP_FILE | cut -d'=' -f2 | tr -d '\r' | xargs)
+          export ANYPOINT_CLIENT_SECRET=$(grep CLIENT_SECRET $PROP_FILE | cut -d'=' -f2 | tr -d '\r' | xargs)
           
-          ORG_ID=$(grep ORG_ID $PROP_FILE | cut -d'=' -f2 | tr -d '\r')
-          ENV_NAME=$(grep ENV_NAME $PROP_FILE | cut -d'=' -f2 | tr -d '\r')
-          TARGET_ID=$(grep TARGET_ID $PROP_FILE | cut -d'=' -f2 | tr -d '\r')
-          APP_NAME=$(grep APP_NAME $PROP_FILE | cut -d'=' -f2 | tr -d '\r')
-          RUNTIME=$(grep RUNTIME_VERSION $PROP_FILE | cut -d'=' -f2 | tr -d '\r')
+          ORG_ID=$(grep ORG_ID $PROP_FILE | cut -d'=' -f2 | tr -d '\r' | xargs)
+          ENV_NAME=$(grep ENV_NAME $PROP_FILE | cut -d'=' -f2 | tr -d '\r' | xargs)
+          TARGET_ID=$(grep TARGET_ID $PROP_FILE | cut -d'=' -f2 | tr -d '\r' | xargs)
+          APP_NAME=$(grep APP_NAME $PROP_FILE | cut -d'=' -f2 | tr -d '\r' | xargs)
+          RUNTIME=$(grep RUNTIME_VERSION $PROP_FILE | cut -d'=' -f2 | tr -d '\r' | xargs)
           
-          APP_ASSET_ID=$(grep ASSET_ID $PROP_FILE | cut -d'=' -f2 | tr -d '\r')
-          APP_VERSION=$(grep ASSET_VERSION $PROP_FILE | cut -d'=' -f2 | tr -d '\r')
+          APP_ASSET_ID=$(grep ASSET_ID $PROP_FILE | cut -d'=' -f2 | tr -d '\r' | xargs)
+          APP_VERSION=$(grep ASSET_VERSION $PROP_FILE | cut -d'=' -f2 | tr -d '\r' | xargs)
           
           # Assuming you are using the same asset details for both Spec and Implementation in this project
           SPEC_ASSET_ID=$APP_ASSET_ID
