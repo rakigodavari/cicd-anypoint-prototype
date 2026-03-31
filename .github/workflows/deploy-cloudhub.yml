@@ -115,7 +115,8 @@ jobs:
           
           if [[ -z "$API_ID" || "$API_ID" == "null" ]]; then
             echo "No existing API instance found. Creating..."
-            API_JSON=$(anypoint-cli-v4 api-mgr:api:manage "$SPEC_ASSET_ID" "$SPEC_VERSION" --type raml --environment "$ENV_NAME" -o json)
+            # CRITICAL FIX: explicitly declare this is a Mule 4 API
+            API_JSON=$(anypoint-cli-v4 api-mgr:api:manage "$SPEC_ASSET_ID" "$SPEC_VERSION" --type raml --muleVersion4OrAbove --environment "$ENV_NAME" -o json)
             echo "Raw response: $API_JSON"
             API_ID=$(echo "$API_JSON" | jq -r '.id // .message' | grep -Eo '[0-9]+' | head -n 1)
           else
