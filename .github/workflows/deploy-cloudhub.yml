@@ -83,11 +83,9 @@ jobs:
           APP_NAME=$(grep APP_NAME $PROP_FILE | cut -d'=' -f2 | tr -d '\r' | xargs)
           RUNTIME=$(grep RUNTIME_VERSION $PROP_FILE | cut -d'=' -f2 | tr -d '\r' | xargs)
           
-          # Distinct Application Asset (Variables perfectly matched now)
           APP_ASSET_ID=$(grep APP_ASSET_ID $PROP_FILE | cut -d'=' -f2 | tr -d '\r' | xargs)
           APP_ASSET_VERSION=$(grep APP_ASSET_VERSION $PROP_FILE | cut -d'=' -f2 | tr -d '\r' | xargs)
           
-          # Distinct RAML Specification Asset
           SPEC_ASSET_ID=$(grep SPEC_ASSET_ID $PROP_FILE | cut -d'=' -f2 | tr -d '\r' | xargs)
           SPEC_VERSION=$(grep SPEC_VERSION $PROP_FILE | cut -d'=' -f2 | tr -d '\r' | xargs)
 
@@ -107,38 +105,48 @@ jobs:
           set -e
 
           echo "=== Step 2: Fetch/Create Autodiscovery ID ==="
-          echo "DEBUG: Searching Exchange for RAML -> ASSET: $SPEC_ASSET_ID | VERSION: $SPEC_VERSION"
-          # CRITICAL FIX: Removed ORG_ID from positional arguments and changed type to raml
           API_JSON=$(anypoint-cli-v4 api-mgr:api:manage "$SPEC_ASSET_ID" "$SPEC_VERSION" --type raml --environment "$ENV_NAME" -o json)
-          API_ID=$(echo "$API_JSON" | jq -r 'if type == "array" then .[0].id else .id end')
+          echo "Raw API_JSON response: $API_JSON"
+          
+          # Safely extract ID whether it's an object or array
+          API_ID=$(echo "$API_JSON" | jq -r 'if type=="array" then .[0].id else .id end')
+          
+          # Fallback regex if JSON parsing fails
+          if [[ "$API_ID" == "null" || -z "$API_ID" ]]; then
+            API_ID=$(echo "$API_JSON" | grep -Eo '"id":\s*[0-9]+' | head -n 1 | grep -Eo '[0-9]+')
+          fi
           echo "Generated API ID: $API_ID"
 
           echo "=== Step 3: Apply Basic Auth Policy ==="
           POLICY_CONFIG="{\"username\":\"$ANYPOINT_CLIENT_ID\",\"password\":\"$ANYPOINT_CLIENT_SECRET\"}"
           set +e
-          anypoint-cli-v4 api-mgr:policy:apply $API_ID basic-authentication-simple 1.2.2 \
-            --environment $ENV_NAME \
+          # CLI v4 format (no positional version needed)
+          anypoint-cli-v4 api-mgr:policy:apply "$API_ID" basic-authentication-simple \
+            --environment "$ENV_NAME" \
             --config "$POLICY_CONFIG" || echo "Policy already exists."
           set -e
 
           echo "=== Step 4: Deploy with Injected Properties ==="
           set +e
-          APP_UUID=$(anypoint-cli-v4 runtime-mgr:application:list --environment $ENV_NAME -o json | jq -r '.. | objects | select(.name? == "'"$APP_NAME"'") | .id' 2>/dev/null | grep -v null | head -n 1 || true)
+          APP_UUID=$(anypoint-cli-v4 runtime-mgr:application:list --environment "$ENV_NAME" -o json | jq -r '.. | objects | select(.name? == "'"$APP_NAME"'") | .id' 2>/dev/null | grep -v null | head -n 1 || true)
           set -e
 
-          CH_PROPERTIES="{\"anypoint.platform.client_id\":\"$ANYPOINT_CLIENT_ID\",\"anypoint.platform.client_secret\":\"$ANYPOINT_CLIENT_SECRET\",\"api.id\":\"$API_ID\"}"
-
+          # CLI v4 format uses multiple --property flags instead of one JSON string
           if [[ -z "$APP_UUID" || "$APP_UUID" == "null" ]]; then
-            anypoint-cli-v4 runtime-mgr:application:deploy $APP_NAME $TARGET_ID $RUNTIME $APP_ASSET_ID \
-              --assetVersion $APP_ASSET_VERSION \
-              --groupId $ORG_ID \
-              --environment $ENV_NAME \
-              --properties "$CH_PROPERTIES"
+            anypoint-cli-v4 runtime-mgr:application:deploy "$APP_NAME" "$TARGET_ID" "$RUNTIME" "$APP_ASSET_ID" \
+              --assetVersion "$APP_ASSET_VERSION" \
+              --groupId "$ORG_ID" \
+              --environment "$ENV_NAME" \
+              --property "anypoint.platform.client_id:$ANYPOINT_CLIENT_ID" \
+              --property "anypoint.platform.client_secret:$ANYPOINT_CLIENT_SECRET" \
+              --property "api.id:$API_ID"
           else
-            anypoint-cli-v4 runtime-mgr:application:modify $APP_UUID \
-              --artifactId $APP_ASSET_ID \
-              --assetVersion $APP_ASSET_VERSION \
-              --groupId $ORG_ID \
-              --environment $ENV_NAME \
-              --properties "$CH_PROPERTIES"
+            anypoint-cli-v4 runtime-mgr:application:modify "$APP_UUID" \
+              --artifactId "$APP_ASSET_ID" \
+              --assetVersion "$APP_ASSET_VERSION" \
+              --groupId "$ORG_ID" \
+              --environment "$ENV_NAME" \
+              --property "anypoint.platform.client_id:$ANYPOINT_CLIENT_ID" \
+              --property "anypoint.platform.client_secret:$ANYPOINT_CLIENT_SECRET" \
+              --property "api.id:$API_ID"
           fi
