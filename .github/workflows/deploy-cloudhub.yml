@@ -45,8 +45,8 @@ jobs:
       - name: Setup Maven Authentication
         run: |
           echo "=== Extracting Credentials for Maven ==="
-          export ANYPOINT_CLIENT_ID=$(grep CLIENT_ID $PROP_FILE | cut -d'=' -f2 | tr -d '\r' | xargs)
-          export ANYPOINT_CLIENT_SECRET=$(grep CLIENT_SECRET $PROP_FILE | cut -d'=' -f2 | tr -d '\r' | xargs)
+          export ANYPOINT_CLIENT_ID=$(grep "^CLIENT_ID=" $PROP_FILE | cut -d'=' -f2 | tr -d '\r' | xargs)
+          export ANYPOINT_CLIENT_SECRET=$(grep "^CLIENT_SECRET=" $PROP_FILE | cut -d'=' -f2 | tr -d '\r' | xargs)
           
           echo "=== Creating settings.xml ==="
           cat <<EOF > settings.xml
@@ -74,23 +74,23 @@ jobs:
           set -e
 
           echo "=== Extracting Remaining Properties ==="
-          export ANYPOINT_CLIENT_ID=$(grep CLIENT_ID $PROP_FILE | cut -d'=' -f2 | tr -d '\r' | xargs)
-          export ANYPOINT_CLIENT_SECRET=$(grep CLIENT_SECRET $PROP_FILE | cut -d'=' -f2 | tr -d '\r' | xargs)
+          export ANYPOINT_CLIENT_ID=$(grep "^CLIENT_ID=" $PROP_FILE | cut -d'=' -f2 | tr -d '\r' | xargs)
+          export ANYPOINT_CLIENT_SECRET=$(grep "^CLIENT_SECRET=" $PROP_FILE | cut -d'=' -f2 | tr -d '\r' | xargs)
           
-          ORG_ID=$(grep ORG_ID $PROP_FILE | cut -d'=' -f2 | tr -d '\r' | xargs)
-          ENV_NAME=$(grep ENV_NAME $PROP_FILE | cut -d'=' -f2 | tr -d '\r' | xargs)
-          TARGET_ID=$(grep TARGET_ID $PROP_FILE | cut -d'=' -f2 | tr -d '\r' | xargs)
-          APP_NAME=$(grep APP_NAME $PROP_FILE | cut -d'=' -f2 | tr -d '\r' | xargs)
-          RUNTIME=$(grep RUNTIME_VERSION $PROP_FILE | cut -d'=' -f2 | tr -d '\r' | xargs)
+          ORG_ID=$(grep "^ORG_ID=" $PROP_FILE | cut -d'=' -f2 | tr -d '\r' | xargs)
+          ENV_NAME=$(grep "^ENV_NAME=" $PROP_FILE | cut -d'=' -f2 | tr -d '\r' | xargs)
+          TARGET_ID=$(grep "^TARGET_ID=" $PROP_FILE | cut -d'=' -f2 | tr -d '\r' | xargs)
+          APP_NAME=$(grep "^APP_NAME=" $PROP_FILE | cut -d'=' -f2 | tr -d '\r' | xargs)
+          RUNTIME=$(grep "^RUNTIME_VERSION=" $PROP_FILE | cut -d'=' -f2 | tr -d '\r' | xargs)
           
-          APP_ASSET_ID=$(grep APP_ASSET_ID $PROP_FILE | cut -d'=' -f2 | tr -d '\r' | xargs)
-          APP_ASSET_VERSION=$(grep APP_ASSET_VERSION $PROP_FILE | cut -d'=' -f2 | tr -d '\r' | xargs)
+          APP_ASSET_ID=$(grep "^APP_ASSET_ID=" $PROP_FILE | cut -d'=' -f2 | tr -d '\r' | xargs)
+          APP_ASSET_VERSION=$(grep "^APP_ASSET_VERSION=" $PROP_FILE | cut -d'=' -f2 | tr -d '\r' | xargs)
           
-          SPEC_ASSET_ID=$(grep SPEC_ASSET_ID $PROP_FILE | cut -d'=' -f2 | tr -d '\r' | xargs)
-          SPEC_VERSION=$(grep SPEC_VERSION $PROP_FILE | cut -d'=' -f2 | tr -d '\r' | xargs)
+          SPEC_ASSET_ID=$(grep "^SPEC_ASSET_ID=" $PROP_FILE | cut -d'=' -f2 | tr -d '\r' | xargs)
+          SPEC_VERSION=$(grep "^SPEC_VERSION=" $PROP_FILE | cut -d'=' -f2 | tr -d '\r' | xargs)
 
-          ENV_CLIENT_ID=$(grep ENV_CLIENT_ID $PROP_FILE | cut -d'=' -f2 | tr -d '\r' | xargs)
-          ENV_CLIENT_SECRET=$(grep ENV_CLIENT_SECRET $PROP_FILE | cut -d'=' -f2 | tr -d '\r' | xargs)
+          ENV_CLIENT_ID=$(grep "^ENV_CLIENT_ID=" $PROP_FILE | cut -d'=' -f2 | tr -d '\r' | xargs)
+          ENV_CLIENT_SECRET=$(grep "^ENV_CLIENT_SECRET=" $PROP_FILE | cut -d'=' -f2 | tr -d '\r' | xargs)
 
           JAR_FILE=$(find target -maxdepth 1 -name "*.jar" | head -n 1)
 
@@ -112,7 +112,7 @@ jobs:
           API_ID=$(anypoint-cli-v4 api-mgr:api:list --environment "$ENV_NAME" -o json | \
             jq -r '.[] | select(.assetId == "'"$SPEC_ASSET_ID"'" and .assetVersion == "'"$SPEC_VERSION"'") | .id' | head -n 1)
           set -e
-
+          
           if [[ -z "$API_ID" || "$API_ID" == "null" ]]; then
             echo "No existing API instance found. Creating..."
             API_JSON=$(anypoint-cli-v4 api-mgr:api:manage "$SPEC_ASSET_ID" "$SPEC_VERSION" --type raml --environment "$ENV_NAME" -o json)
@@ -121,12 +121,12 @@ jobs:
           else
             echo "Existing API instance found. Reusing ID: $API_ID"
           fi
-
+          
           if [[ -z "$API_ID" || "$API_ID" == "null" ]]; then
             echo "ERROR: Could not extract API_ID."
             exit 1
           fi
-
+          
           echo "Using API ID: $API_ID"
 
           echo "=== Step 3: Apply Basic Auth Policy ==="
