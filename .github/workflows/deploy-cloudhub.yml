@@ -105,17 +105,26 @@ jobs:
           set -e
 
           echo "=== Step 2: Fetch/Create Autodiscovery ID ==="
-          API_JSON=$(anypoint-cli-v4 api-mgr:api:manage "$SPEC_ASSET_ID" "$SPEC_VERSION" --type raml --environment "$ENV_NAME" -o json)
-          echo "Raw API_JSON response: $API_JSON"
-          
-          # Safely extract ID whether it's an object or array
-          API_ID=$(echo "$API_JSON" | jq -r 'if type=="array" then .[0].id else .id end')
-          
-          # Fallback regex if JSON parsing fails
-          if [[ "$API_ID" == "null" || -z "$API_ID" ]]; then
-            API_ID=$(echo "$API_JSON" | grep -Eo '"id":\s*[0-9]+' | head -n 1 | grep -Eo '[0-9]+')
+          set +e
+          API_ID=$(anypoint-cli-v4 api-mgr:api:list --environment "$ENV_NAME" -o json | \
+            jq -r '.[] | select(.assetId == "'"$SPEC_ASSET_ID"'" and .assetVersion == "'"$SPEC_VERSION"'") | .id' | head -n 1)
+          set -e
+
+          if [[ -z "$API_ID" || "$API_ID" == "null" ]]; then
+            echo "No existing API instance found. Creating..."
+            API_JSON=$(anypoint-cli-v4 api-mgr:api:manage "$SPEC_ASSET_ID" "$SPEC_VERSION" --type raml --environment "$ENV_NAME" -o json)
+            echo "Raw response: $API_JSON"
+            API_ID=$(echo "$API_JSON" | jq -r '.id // .message' | grep -Eo '[0-9]+' | head -n 1)
+          else
+            echo "Existing API instance found. Reusing ID: $API_ID"
           fi
-          echo "Generated API ID: $API_ID"
+
+          if [[ -z "$API_ID" || "$API_ID" == "null" ]]; then
+            echo "ERROR: Could not extract API_ID."
+            exit 1
+          fi
+
+          echo "Using API ID: $API_ID"
 
           echo "=== Step 3: Apply Basic Auth Policy ==="
           POLICY_CONFIG="{\"username\":\"$ANYPOINT_CLIENT_ID\",\"password\":\"$ANYPOINT_CLIENT_SECRET\"}"
