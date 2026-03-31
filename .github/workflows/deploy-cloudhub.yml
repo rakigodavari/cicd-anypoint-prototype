@@ -133,10 +133,10 @@ jobs:
           echo "=== Step 3: Apply Basic Auth Policy ==="
           POLICY_CONFIG="{\"username\":\"$ANYPOINT_CLIENT_ID\",\"password\":\"$ANYPOINT_CLIENT_SECRET\"}"
           set +e
-          # CLI v4 format (no positional version needed)
+          # Let's see what the CLI actually says without hiding the error!
           anypoint-cli-v4 api-mgr:policy:apply "$API_ID" basic-authentication-simple \
             --environment "$ENV_NAME" \
-            --config "$POLICY_CONFIG" || echo "Policy already exists."
+            --config "$POLICY_CONFIG"
           set -e
 
           echo "=== Step 4: Deploy with Injected Properties ==="
