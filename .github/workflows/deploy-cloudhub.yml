@@ -83,9 +83,9 @@ jobs:
           APP_NAME=$(grep APP_NAME $PROP_FILE | cut -d'=' -f2 | tr -d '\r' | xargs)
           RUNTIME=$(grep RUNTIME_VERSION $PROP_FILE | cut -d'=' -f2 | tr -d '\r' | xargs)
           
-          # Distinct Application Asset
+          # Distinct Application Asset (Variables perfectly matched now)
           APP_ASSET_ID=$(grep APP_ASSET_ID $PROP_FILE | cut -d'=' -f2 | tr -d '\r' | xargs)
-          APP_VERSION=$(grep APP_ASSET_VERSION $PROP_FILE | cut -d'=' -f2 | tr -d '\r' | xargs)
+          APP_ASSET_VERSION=$(grep APP_ASSET_VERSION $PROP_FILE | cut -d'=' -f2 | tr -d '\r' | xargs)
           
           # Distinct RAML Specification Asset
           SPEC_ASSET_ID=$(grep SPEC_ASSET_ID $PROP_FILE | cut -d'=' -f2 | tr -d '\r' | xargs)
@@ -95,11 +95,11 @@ jobs:
 
           echo "=== Step 1: Exchange Upload (Smart Check) ==="
           set +e
-          if anypoint-cli-v4 exchange:asset:describe $ORG_ID/$APP_ASSET_ID/$APP_VERSION > /dev/null 2>&1; then
-            echo "Asset $APP_ASSET_ID v$APP_VERSION exists. Skipping upload."
+          if anypoint-cli-v4 exchange:asset:describe $ORG_ID/$APP_ASSET_ID/$APP_ASSET_VERSION > /dev/null 2>&1; then
+            echo "Asset $APP_ASSET_ID v$APP_ASSET_VERSION exists. Skipping upload."
           else
             echo "Uploading new implementation to Exchange..."
-            anypoint-cli-v4 exchange:asset:upload $ORG_ID/$APP_ASSET_ID/$APP_VERSION \
+            anypoint-cli-v4 exchange:asset:upload $ORG_ID/$APP_ASSET_ID/$APP_ASSET_VERSION \
               --files="{\"mule-application.jar\": \"$JAR_FILE\"}" \
               --type="app" \
               --name="$APP_ASSET_ID"
@@ -107,7 +107,9 @@ jobs:
           set -e
 
           echo "=== Step 2: Fetch/Create Autodiscovery ID ==="
-          API_JSON=$(anypoint-cli-v4 api-mgr:api:manage $ORG_ID $SPEC_ASSET_ID $SPEC_VERSION --environment $ENV_NAME -o json)
+          echo "🔍 DEBUG: Searching Exchange for RAML -> ORG: $ORG_ID | ASSET: $SPEC_ASSET_ID | VERSION: $SPEC_VERSION"
+          # CRITICAL FIX: Added --type raml and wrapped variables in quotes
+          API_JSON=$(anypoint-cli-v4 api-mgr:api:manage "$ORG_ID" "$SPEC_ASSET_ID" "$SPEC_VERSION" --type raml --environment "$ENV_NAME" -o json)
           API_ID=$(echo $API_JSON | jq -r '.[0].id // .id')
           echo "Generated API ID: $API_ID"
 
@@ -128,14 +130,14 @@ jobs:
 
           if [[ -z "$APP_UUID" || "$APP_UUID" == "null" ]]; then
             anypoint-cli-v4 runtime-mgr:application:deploy $APP_NAME $TARGET_ID $RUNTIME $APP_ASSET_ID \
-              --assetVersion $APP_VERSION \
+              --assetVersion $APP_ASSET_VERSION \
               --groupId $ORG_ID \
               --environment $ENV_NAME \
               --properties "$CH_PROPERTIES"
           else
             anypoint-cli-v4 runtime-mgr:application:modify $APP_UUID \
               --artifactId $APP_ASSET_ID \
-              --assetVersion $APP_VERSION \
+              --assetVersion $APP_ASSET_VERSION \
               --groupId $ORG_ID \
               --environment $ENV_NAME \
               --properties "$CH_PROPERTIES"
