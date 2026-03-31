@@ -20,9 +20,6 @@ jobs:
           distribution: 'adopt'
           cache: maven
 
-      - name: Build Clean Application
-        run: mvn clean package -DskipTests
-
       - name: Set up Node.js
         uses: actions/setup-node@v4
         with:
@@ -31,6 +28,7 @@ jobs:
       - name: Install Anypoint CLI
         run: npm install -g anypoint-cli-v4
 
+      # === 1. DETERMINE ENVIRONMENT FIRST ===
       - name: Determine Environment
         id: set-env
         run: |
@@ -43,11 +41,39 @@ jobs:
             exit 1
           fi
 
+      # === 2. EXTRACT PROPERTIES & CREATE MAVEN SETTINGS ===
+      - name: Setup Maven Authentication
+        run: |
+          echo "=== Extracting Credentials for Maven ==="
+          export ANYPOINT_CLIENT_ID=$(grep CLIENT_ID $PROP_FILE | cut -d'=' -f2 | tr -d '\r')
+          export ANYPOINT_CLIENT_SECRET=$(grep CLIENT_SECRET $PROP_FILE | cut -d'=' -f2 | tr -d '\r')
+          
+          echo "=== Creating settings.xml ==="
+          cat <<EOF > settings.xml
+          <?xml version="1.0" encoding="UTF-8"?>
+          <settings xmlns="http://maven.apache.org/SETTINGS/1.0.0"
+                    xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+                    xsi:schemaLocation="http://maven.apache.org/SETTINGS/1.0.0 http://maven.apache.org/xsd/settings-1.0.0.xsd">
+            <servers>
+              <server>
+                <id>anypoint-exchange-v3</id>
+                <username>~~~Client~~~</username>
+                <password>$ANYPOINT_CLIENT_ID~$ANYPOINT_CLIENT_SECRET</password>
+              </server>
+            </servers>
+          </settings>
+          EOF
+
+      # === 3. BUILD PHASE (Now with Authentication!) ===
+      - name: Build Clean Application
+        run: mvn clean package -s settings.xml -DskipTests
+
+      # === 4. CI/CD EXECUTION PHASE ===
       - name: CI/CD Execution
         run: |
           set -e
 
-          echo "=== Extracting Properties ==="
+          echo "=== Extracting Remaining Properties ==="
           export ANYPOINT_CLIENT_ID=$(grep CLIENT_ID $PROP_FILE | cut -d'=' -f2 | tr -d '\r')
           export ANYPOINT_CLIENT_SECRET=$(grep CLIENT_SECRET $PROP_FILE | cut -d'=' -f2 | tr -d '\r')
           
@@ -57,13 +83,12 @@ jobs:
           APP_NAME=$(grep APP_NAME $PROP_FILE | cut -d'=' -f2 | tr -d '\r')
           RUNTIME=$(grep RUNTIME_VERSION $PROP_FILE | cut -d'=' -f2 | tr -d '\r')
           
-          # Implementation Details
-          APP_ASSET_ID=$(grep APP_ASSET_ID $PROP_FILE | cut -d'=' -f2 | tr -d '\r')
-          APP_VERSION=$(grep APP_ASSET_VERSION $PROP_FILE | cut -d'=' -f2 | tr -d '\r')
+          APP_ASSET_ID=$(grep ASSET_ID $PROP_FILE | cut -d'=' -f2 | tr -d '\r')
+          APP_VERSION=$(grep ASSET_VERSION $PROP_FILE | cut -d'=' -f2 | tr -d '\r')
           
-          # RAML Spec Details
-          SPEC_ASSET_ID=$(grep SPEC_ASSET_ID $PROP_FILE | cut -d'=' -f2 | tr -d '\r')
-          SPEC_VERSION=$(grep SPEC_VERSION $PROP_FILE | cut -d'=' -f2 | tr -d '\r')
+          # Assuming you are using the same asset details for both Spec and Implementation in this project
+          SPEC_ASSET_ID=$APP_ASSET_ID
+          SPEC_VERSION=$APP_VERSION
 
           JAR_FILE=$(find target -maxdepth 1 -name "*.jar" | head -n 1)
 
