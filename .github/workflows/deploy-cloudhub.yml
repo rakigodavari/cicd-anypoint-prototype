@@ -1,0 +1,116 @@
+name: Deploy to CloudHub 2.0
+
+on:
+  push:
+    branches: [ "develop", "main" ]
+  workflow_dispatch:
+
+jobs:
+  build-and-deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Set up Java JDK 11
+        uses: actions/setup-java@v4
+        with:
+          java-version: '11'
+          distribution: 'adopt'
+          cache: maven
+
+      - name: Build Clean Application
+        run: mvn clean package -DskipTests
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+
+      - name: Install Anypoint CLI
+        run: npm install -g anypoint-cli-v4
+
+      - name: Determine Environment
+        id: set-env
+        run: |
+          if [[ "${{ github.ref_name }}" == "develop" ]]; then
+            echo "PROP_FILE=src/main/resources/sandbox.properties" >> $GITHUB_ENV
+          elif [[ "${{ github.ref_name }}" == "main" ]]; then
+            echo "PROP_FILE=src/main/resources/design.properties" >> $GITHUB_ENV
+          else
+            echo "Error: Branch not supported."
+            exit 1
+          fi
+
+      - name: CI/CD Execution
+        run: |
+          set -e
+
+          echo "=== Extracting Properties ==="
+          export ANYPOINT_CLIENT_ID=$(grep CLIENT_ID $PROP_FILE | cut -d'=' -f2 | tr -d '\r')
+          export ANYPOINT_CLIENT_SECRET=$(grep CLIENT_SECRET $PROP_FILE | cut -d'=' -f2 | tr -d '\r')
+          
+          ORG_ID=$(grep ORG_ID $PROP_FILE | cut -d'=' -f2 | tr -d '\r')
+          ENV_NAME=$(grep ENV_NAME $PROP_FILE | cut -d'=' -f2 | tr -d '\r')
+          TARGET_ID=$(grep TARGET_ID $PROP_FILE | cut -d'=' -f2 | tr -d '\r')
+          APP_NAME=$(grep APP_NAME $PROP_FILE | cut -d'=' -f2 | tr -d '\r')
+          RUNTIME=$(grep RUNTIME_VERSION $PROP_FILE | cut -d'=' -f2 | tr -d '\r')
+          
+          # Implementation Details
+          APP_ASSET_ID=$(grep APP_ASSET_ID $PROP_FILE | cut -d'=' -f2 | tr -d '\r')
+          APP_VERSION=$(grep APP_ASSET_VERSION $PROP_FILE | cut -d'=' -f2 | tr -d '\r')
+          
+          # RAML Spec Details
+          SPEC_ASSET_ID=$(grep SPEC_ASSET_ID $PROP_FILE | cut -d'=' -f2 | tr -d '\r')
+          SPEC_VERSION=$(grep SPEC_VERSION $PROP_FILE | cut -d'=' -f2 | tr -d '\r')
+
+          JAR_FILE=$(find target -maxdepth 1 -name "*.jar" | head -n 1)
+
+          echo "=== Step 1: Exchange Upload (Smart Check) ==="
+          set +e
+          if anypoint-cli-v4 exchange:asset:describe $ORG_ID/$APP_ASSET_ID/$APP_VERSION > /dev/null 2>&1; then
+            echo "Asset $APP_ASSET_ID v$APP_VERSION exists. Skipping upload."
+          else
+            echo "Uploading new implementation to Exchange..."
+            anypoint-cli-v4 exchange:asset:upload $ORG_ID/$APP_ASSET_ID/$APP_VERSION \
+              --files="{\"mule-application.jar\": \"$JAR_FILE\"}" \
+              --type="app" \
+              --name="$APP_ASSET_ID"
+          fi
+          set -e
+
+          echo "=== Step 2: Fetch/Create Autodiscovery ID ==="
+          API_JSON=$(anypoint-cli-v4 api-mgr:api:manage $ORG_ID $SPEC_ASSET_ID $SPEC_VERSION --environment $ENV_NAME -o json)
+          API_ID=$(echo $API_JSON | jq -r '.[0].id // .id')
+          echo "Generated API ID: $API_ID"
+
+          echo "=== Step 3: Apply Basic Auth Policy ==="
+          POLICY_CONFIG="{\"username\":\"$ANYPOINT_CLIENT_ID\",\"password\":\"$ANYPOINT_CLIENT_SECRET\"}"
+          set +e
+          anypoint-cli-v4 api-mgr:policy:apply $API_ID basic-authentication-simple 1.2.2 \
+            --environment $ENV_NAME \
+            --config "$POLICY_CONFIG" || echo "Policy already exists."
+          set -e
+
+          echo "=== Step 4: Deploy with Injected Properties ==="
+          set +e
+          APP_UUID=$(anypoint-cli-v4 runtime-mgr:application:list --environment $ENV_NAME -o json | jq -r '.. | objects | select(.name? == "'"$APP_NAME"'") | .id' 2>/dev/null | grep -v null | head -n 1 || true)
+          set -e
+
+          CH_PROPERTIES="{\"anypoint.platform.client_id\":\"$ANYPOINT_CLIENT_ID\",\"anypoint.platform.client_secret\":\"$ANYPOINT_CLIENT_SECRET\",\"api.id\":\"$API_ID\"}"
+
+          if [[ -z "$APP_UUID" || "$APP_UUID" == "null" ]]; then
+            anypoint-cli-v4 runtime-mgr:application:deploy $APP_NAME $TARGET_ID $RUNTIME $APP_ASSET_ID \
+              --assetVersion $APP_VERSION \
+              --groupId $ORG_ID \
+              --environment $ENV_NAME \
+              --properties "$CH_PROPERTIES"
+          else
+            anypoint-cli-v4 runtime-mgr:application:modify $APP_UUID \
+              --artifactId $APP_ASSET_ID \
+              --assetVersion $APP_VERSION \
+              --groupId $ORG_ID \
+              --environment $ENV_NAME \
+              --properties "$CH_PROPERTIES"
+          fi
