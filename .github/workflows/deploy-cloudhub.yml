@@ -58,7 +58,7 @@ jobs:
               <server>
                 <id>anypoint-exchange-v3</id>
                 <username>~~~Client~~~</username>
-                <password>$ANYPOINT_CLIENT_ID~$ANYPOINT_CLIENT_SECRET</password>
+                <password>$ANYPOINT_CLIENT_ID~?~$ANYPOINT_CLIENT_SECRET</password>
               </server>
             </servers>
           </settings>
