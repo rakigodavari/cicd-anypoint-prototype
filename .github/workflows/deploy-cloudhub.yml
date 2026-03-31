@@ -133,8 +133,10 @@ jobs:
           echo "=== Step 3: Apply Basic Auth Policy ==="
           POLICY_CONFIG="{\"username\":\"$ANYPOINT_CLIENT_ID\",\"password\":\"$ANYPOINT_CLIENT_SECRET\"}"
           set +e
-          # Let's see what the CLI actually says without hiding the error!
-          anypoint-cli-v4 api-mgr:policy:apply "$API_ID" basic-authentication-simple \
+          # CLI v4 requires exact Exchange coordinates for out-of-the-box policies
+          anypoint-cli-v4 api-mgr:policy:apply "$API_ID" http-basic-authentication \
+            --groupId "68ef9520-24e9-4cf2-b2f5-620025690913" \
+            --policyVersion "1.3.2" \
             --environment "$ENV_NAME" \
             --config "$POLICY_CONFIG"
           set -e
