@@ -89,6 +89,9 @@ jobs:
           SPEC_ASSET_ID=$(grep SPEC_ASSET_ID $PROP_FILE | cut -d'=' -f2 | tr -d '\r' | xargs)
           SPEC_VERSION=$(grep SPEC_VERSION $PROP_FILE | cut -d'=' -f2 | tr -d '\r' | xargs)
 
+          ENV_CLIENT_ID=$(grep ENV_CLIENT_ID $PROP_FILE | cut -d'=' -f2 | tr -d '\r' | xargs)
+          ENV_CLIENT_SECRET=$(grep ENV_CLIENT_SECRET $PROP_FILE | cut -d'=' -f2 | tr -d '\r' | xargs)
+
           JAR_FILE=$(find target -maxdepth 1 -name "*.jar" | head -n 1)
 
           echo "=== Step 1: Exchange Upload (Smart Check) ==="
@@ -146,8 +149,8 @@ jobs:
               --assetVersion "$APP_ASSET_VERSION" \
               --groupId "$ORG_ID" \
               --environment "$ENV_NAME" \
-              --property "anypoint.platform.client_id:$ANYPOINT_CLIENT_ID" \
-              --property "anypoint.platform.client_secret:$ANYPOINT_CLIENT_SECRET" \
+              --property "anypoint.platform.client_id:$ENV_CLIENT_ID" \
+              --property "anypoint.platform.client_secret:$ENV_CLIENT_SECRET" \
               --property "api.id:$API_ID"
           else
             anypoint-cli-v4 runtime-mgr:application:modify "$APP_UUID" \
@@ -155,7 +158,7 @@ jobs:
               --assetVersion "$APP_ASSET_VERSION" \
               --groupId "$ORG_ID" \
               --environment "$ENV_NAME" \
-              --property "anypoint.platform.client_id:$ANYPOINT_CLIENT_ID" \
-              --property "anypoint.platform.client_secret:$ANYPOINT_CLIENT_SECRET" \
+              --property "anypoint.platform.client_id:$ENV_CLIENT_ID" \
+              --property "anypoint.platform.client_secret:$ENV_CLIENT_SECRET" \
               --property "api.id:$API_ID"
           fi
