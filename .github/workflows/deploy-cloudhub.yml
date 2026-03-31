@@ -108,8 +108,8 @@ jobs:
 
           echo "=== Step 2: Fetch/Create Autodiscovery ID ==="
           echo "DEBUG: Searching Exchange for RAML -> ASSET: $SPEC_ASSET_ID | VERSION: $SPEC_VERSION"
-          # CRITICAL FIX: Removed ORG_ID from positional arguments and changed type to rest-api
-          API_JSON=$(anypoint-cli-v4 api-mgr:api:manage "$SPEC_ASSET_ID" "$SPEC_VERSION" --type rest-api --environment "$ENV_NAME" -o json)
+          # CRITICAL FIX: Removed ORG_ID from positional arguments and changed type to raml
+          API_JSON=$(anypoint-cli-v4 api-mgr:api:manage "$SPEC_ASSET_ID" "$SPEC_VERSION" --type raml --environment "$ENV_NAME" -o json)
           API_ID=$(echo $API_JSON | jq -r '.[0].id // .id')
           echo "Generated API ID: $API_ID"
 
